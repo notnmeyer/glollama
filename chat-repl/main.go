@@ -17,7 +17,7 @@ type Config struct {
 
 var (
 	cfg = &Config{
-		Model: "llama3",
+		Model: "codellama",
 	}
 	messages = []api.Message{{
 		Role:    "system",
@@ -38,6 +38,7 @@ func main() {
 	}
 
 	reader := bufio.NewScanner(os.Stdin)
+	writer := bufio.NewWriter(os.Stdout)
 	printPrompt()
 	for reader.Scan() {
 		messages = append(messages, api.Message{
@@ -47,7 +48,7 @@ func main() {
 
 		ctx := context.Background()
 		req := &api.ChatRequest{
-			Model:    "llama3",
+			Model:    cfg.Model,
 			Messages: messages,
 		}
 
