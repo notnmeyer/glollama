@@ -1,6 +1,6 @@
 package history
 
-import(
+import (
 	"github.com/ollama/ollama/api"
 )
 
@@ -13,6 +13,6 @@ func New() *History {
 	}}
 }
 
-func (h *History) append(msg *api.) error {
-	
+func (h *History) Append(msg *api.Message) {
+	*h = append(*h, *msg)
 }
