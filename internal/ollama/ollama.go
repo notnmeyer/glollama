@@ -13,7 +13,7 @@ type Chat struct {
 	Model  string
 }
 
-func New() *Chat {
+func New(model string) *Chat {
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
 		log.Fatal(err)
@@ -21,7 +21,7 @@ func New() *Chat {
 
 	return &Chat{
 		client: client,
-		Model:  "codellama",
+		Model:  model,
 	}
 }
 

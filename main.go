@@ -1,12 +1,9 @@
 package main
 
 import (
-	// "context"
 	"fmt"
 	"log"
-	// "log"
-	// "math"
-	// "os"
+	"os"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -19,7 +16,10 @@ import (
 	"github.com/notnmeyer/glollama/internal/ollama"
 )
 
-const maxWidth = 78
+const (
+	maxWidth     = 78
+	defaultModel = "codellama"
+)
 
 type response struct {
 	// the server may split the response across several... responses.
@@ -45,7 +45,11 @@ func (a app) helpView() string {
 }
 
 func newApp() (*app, error) {
-	client := ollama.New()
+	model := os.Getenv("MODEL")
+	if model == "" {
+		model = defaultModel
+	}
+	client := ollama.New(model)
 
 	// the textarea where the query is entered
 	ta := textarea.New()
@@ -63,7 +67,7 @@ func newApp() (*app, error) {
 		PaddingRight(2)
 
 	return &app{
-		client:  ollama.New(),
+		client:  client,
 		history: history.New(),
 		ta:      ta,
 		vp:      vp,
