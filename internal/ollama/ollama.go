@@ -27,10 +27,9 @@ func New(model string) *Chat {
 
 func (c *Chat) Chat(hist *history.History, respFunc api.ChatResponseFunc) {
 	req := &api.ChatRequest{
-		// TODO: make configurable
 		Model:    c.Model,
 		Messages: *hist,
 	}
 
-	go c.client.Chat(context.TODO(), req, respFunc)
+	c.client.Chat(context.TODO(), req, respFunc)
 }

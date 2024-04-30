@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -16,10 +17,11 @@ import (
 	"github.com/notnmeyer/glollama/internal/ollama"
 )
 
-const (
-	maxWidth     = 78
-	defaultModel = "codellama"
-)
+var viewWidth = 0
+
+const defaultModel = "codellama"
+
+type responseMsg string
 
 type response struct {
 	// the server may split the response across several... responses.
@@ -60,7 +62,7 @@ func newApp() (*app, error) {
 	ta.Focus()
 
 	// the textarea where the response is displayed
-	vp := viewport.New(maxWidth, 40)
+	vp := viewport.New(20, 40)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
@@ -87,6 +89,12 @@ func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case responseMsg:
+		// TODO: we want the responses in the history, but this breaks subsequent queries
+		// a.history.Append(&api.Message{
+		// 	Role:    "assistant",
+		// 	Content: strings.TrimSpace(string(msg)),
+		// })
+
 		a.resp.all += string(msg)
 		update, err := render(a.resp.all)
 		if err != nil {
@@ -99,16 +107,21 @@ func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c", "esc":
 			return a, tea.Quit
 		case "enter":
+			value := strings.TrimSpace(a.ta.Value())
+			a.ta.Reset()
+
 			a.history.Append(&api.Message{
 				Role:    "user",
-				Content: a.ta.Value(),
+				Content: value,
 			})
 
-			a.resp.all += fmt.Sprintf("\n# %s\n", a.ta.Value())
-			a.client.Chat(a.history, a.respFunc)
+			go func() {
+				a.resp.acc <- fmt.Sprintf("# %s\n", value)
+				a.client.Chat(a.history, a.respFunc)
+				a.resp.all += "\n"
+			}()
 
-			// reset UI for next query
-			a.reset()
+			a.vp.SetContent(a.resp.all)
 
 			a.vp, vpCmd = a.vp.Update(msg)
 			a.ta, taCmd = a.ta.Update(msg)
@@ -126,9 +139,11 @@ func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, tea.Batch(taCmd)
 		}
 	case tea.WindowSizeMsg:
+		viewWidth = msg.Width - 2 // 2 seems to be the magic value
 		// TODO: calculate height based on length of input
 		// a.query.SetHeight(msg.Height - 10)
-		a.ta.SetWidth(msg.Width - 10)
+		a.ta.SetWidth(viewWidth)
+		a.vp.Width = viewWidth
 		return a, nil
 	default:
 		return a, nil
@@ -160,8 +175,6 @@ func (a app) respFunc(resp api.ChatResponse) error {
 	return nil
 }
 
-type responseMsg string
-
 // generates a message for the update loop
 func activityMonitor(ch chan string) tea.Cmd {
 	return func() tea.Msg {
@@ -173,7 +186,7 @@ func activityMonitor(ch chan string) tea.Cmd {
 func render(str string) (string, error) {
 	renderer, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(maxWidth-5),
+		glamour.WithWordWrap(viewWidth-10),
 	)
 	if err != nil {
 		return "", err
@@ -185,8 +198,4 @@ func render(str string) (string, error) {
 	}
 
 	return rendered, nil
-}
-
-func (a app) reset() {
-	a.ta.SetValue("")
 }
